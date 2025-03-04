@@ -1,13 +1,15 @@
-document.getElementById('uploadButton').addEventListener('click', () => {
-    const fileInput = document.getElementById('fileInput');
-    const file = fileInput.files[0];
+document.getElementById('fileInput').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    const imagePreview = document.getElementById('imagePreview');
+    const moderationLabels = document.getElementById('moderationLabels');
 
     if (file && file.type === 'image/jpeg') {
         const reader = new FileReader();
         reader.onloadend = () => {
-            const base64Image = reader.result.split(',')[1];
-            document.getElementById('imagePreview').src = reader.result;
-            detectModerationLabels(base64Image);
+            imagePreview.src = reader.result;
+            imagePreview.classList.remove('hidden');
+            moderationLabels.innerHTML = '<p class="text-gray-500">Analyzing image...</p>';
+            detectModerationLabels(reader.result.split(',')[1]);
         };
         reader.readAsDataURL(file);
     } else {
@@ -16,6 +18,8 @@ document.getElementById('uploadButton').addEventListener('click', () => {
 });
 
 function detectModerationLabels(base64Image) {
+    const moderationLabels = document.getElementById('moderationLabels');
+
     fetch('/api/detect-moderation', {
         method: 'POST',
         headers: {
@@ -29,26 +33,32 @@ function detectModerationLabels(base64Image) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while detecting moderation labels.');
+        moderationLabels.innerHTML = `
+            <p class="text-red-500">Error detecting moderation labels</p>
+        `;
     });
 }
 
 function displayModerationLabels(labels) {
     const moderationLabelsDiv = document.getElementById('moderationLabels');
-    moderationLabelsDiv.innerHTML = '';
-
+    
     if (labels.length === 0) {
-        moderationLabelsDiv.textContent = 'No moderation labels detected.';
+        moderationLabelsDiv.innerHTML = `
+            <p class="text-green-500">No moderation labels detected</p>
+        `;
         return;
     }
 
-    const ul = document.createElement('ul');
-    labels.forEach(label => {
-        const li = document.createElement('li');
-        li.textContent = label.Name;
-        ul.appendChild(li);
-    });
+    const labelsList = labels.map(label => 
+        `<li class="bg-white rounded-md p-2 my-1 shadow-sm">
+            ${label.Name}
+        </li>`
+    ).join('');
 
-    moderationLabelsDiv.appendChild(ul);
+    moderationLabelsDiv.innerHTML = `
+        <div>
+            <h3 class="text-lg font-semibold mb-2 text-gray-700">Detected Labels:</h3>
+            <ul class="space-y-2">${labelsList}</ul>
+        </div>
+    `;
 }
-
